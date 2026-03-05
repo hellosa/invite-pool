@@ -21,6 +21,11 @@ const STATUS_LABEL: Record<Invite["status"], string> = {
   expired: "已过期",
 };
 
+function maskCode(code: string) {
+  if (code.length <= 2) return "••••••";
+  return `${"•".repeat(Math.max(4, code.length - 2))}${code.slice(-2)}`;
+}
+
 export default function Home() {
   const [actor, setActor] = useState("");
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -71,9 +76,19 @@ export default function Home() {
       <section className="hero">
         <div>
           <h1>Invite Pool</h1>
-          <p>像 Todo 一样发邀请码：领取 → 使用 → 释放。</p>
+          <p>邀请码默认隐藏：先领取，再查看完整邀请码。</p>
         </div>
         <button className="btn ghost" onClick={refresh}>刷新</button>
+      </section>
+
+      <section className="card">
+        <h2>使用说明</h2>
+        <div className="list muted">
+          <p>1) 输入你的名字（用于标记领取人）</p>
+          <p>2) 在邀请码池里点击「领取」</p>
+          <p>3) 到「我领取的」复制完整邀请码</p>
+          <p>4) 用完后点「标记已用」；不需要了点「释放」</p>
+        </div>
       </section>
 
       <section className="card">
@@ -90,7 +105,7 @@ export default function Home() {
       </section>
 
       <section className="card">
-        <h2>我领取的</h2>
+        <h2>我领取的（显示完整邀请码）</h2>
         {mine.length === 0 ? (
           <p className="muted">你还没有已领取的邀请码。</p>
         ) : (
@@ -100,6 +115,7 @@ export default function Home() {
                 <div className="left">
                   <code>{x.code}</code>
                   <span className={`tag ${x.status}`}>{STATUS_LABEL[x.status]}</span>
+                  {x.note ? <span className="note">#{x.note}</span> : null}
                 </div>
                 <div className="actions">
                   <button className="btn primary" disabled={busyId === x.id} onClick={() => post("/api/use", x.id)}>
@@ -116,30 +132,35 @@ export default function Home() {
       </section>
 
       <section className="card">
-        <h2>邀请码池</h2>
+        <h2>邀请码池（隐藏显示）</h2>
         {invites.length === 0 ? (
           <p className="muted">暂无数据。先在 Supabase 执行 schema.sql。</p>
         ) : (
           <div className="list">
-            {invites.map((x) => (
-              <div className="item" key={x.id}>
-                <div className="left">
-                  <code>{x.code}</code>
-                  <span className={`tag ${x.status}`}>{STATUS_LABEL[x.status]}</span>
-                  {x.note ? <span className="note">{x.note}</span> : null}
-                  {x.claimed_by ? <span className="muted">by {x.claimed_by}</span> : null}
+            {invites.map((x) => {
+              const isOwner = !!actor && x.claimed_by === actor;
+              const visibleCode = isOwner && x.status === "claimed" ? x.code : maskCode(x.code);
+
+              return (
+                <div className="item" key={x.id}>
+                  <div className="left">
+                    <code>{visibleCode}</code>
+                    <span className={`tag ${x.status}`}>{STATUS_LABEL[x.status]}</span>
+                    {x.note ? <span className="note">#{x.note}</span> : null}
+                    {x.claimed_by ? <span className="muted">by {x.claimed_by}</span> : null}
+                  </div>
+                  <div className="actions">
+                    {x.status === "available" ? (
+                      <button className="btn success" disabled={busyId === x.id} onClick={() => post("/api/claim", x.id)}>
+                        领取
+                      </button>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </div>
                 </div>
-                <div className="actions">
-                  {x.status === "available" ? (
-                    <button className="btn success" disabled={busyId === x.id} onClick={() => post("/api/claim", x.id)}>
-                      领取
-                    </button>
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
