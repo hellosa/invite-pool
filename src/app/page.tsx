@@ -14,12 +14,22 @@ type Invite = {
   created_at: string;
 };
 
+const STATUS_LABEL: Record<Invite["status"], string> = {
+  available: "可领取",
+  claimed: "已领取",
+  used: "已使用",
+  expired: "已过期",
+};
+
 export default function Home() {
   const [actor, setActor] = useState("");
   const [invites, setInvites] = useState<Invite[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const mine = useMemo(() => invites.filter((x) => x.claimed_by === actor && x.status === "claimed"), [invites, actor]);
+  const mine = useMemo(
+    () => invites.filter((x) => x.claimed_by === actor && x.status === "claimed"),
+    [invites, actor],
+  );
 
   async function refresh() {
     const res = await fetch("/api/invites", { cache: "no-store" });
@@ -57,65 +67,82 @@ export default function Home() {
   }
 
   return (
-    <main style={{ maxWidth: 860, margin: "40px auto", fontFamily: "system-ui, sans-serif", padding: "0 16px" }}>
-      <h1>Invite Pool</h1>
-      <p>像 todo 一样分发邀请码：领取（claim）→ 使用（used）→ 释放（release）。</p>
+    <main className="page">
+      <section className="hero">
+        <div>
+          <h1>Invite Pool</h1>
+          <p>像 Todo 一样发邀请码：领取 → 使用 → 释放。</p>
+        </div>
+        <button className="btn ghost" onClick={refresh}>刷新</button>
+      </section>
 
-      <div style={{ margin: "16px 0 24px" }}>
-        <label>
-          你的名字：
+      <section className="card">
+        <label className="label" htmlFor="actor">你的名字</label>
+        <div className="row">
           <input
+            id="actor"
+            className="input"
             value={actor}
             onChange={(e) => setActor(e.target.value)}
-            placeholder="chong"
-            style={{ marginLeft: 8, padding: "6px 8px", minWidth: 220 }}
+            placeholder="例如：chong"
           />
-        </label>
-        <button style={{ marginLeft: 8 }} onClick={refresh}>刷新</button>
-      </div>
+        </div>
+      </section>
 
-      <h3>我领取的</h3>
-      {mine.length === 0 ? <p>暂无</p> : (
-        <ul>
-          {mine.map((x) => (
-            <li key={x.id}>
-              <code>{x.code}</code>
-              <button style={{ marginLeft: 8 }} disabled={busyId === x.id} onClick={() => post("/api/use", x.id)}>标记已用</button>
-              <button style={{ marginLeft: 8 }} disabled={busyId === x.id} onClick={() => post("/api/release", x.id)}>释放</button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h3>邀请码列表</h3>
-      {invites.length === 0 ? <p>暂无数据（先在 Supabase 运行 schema.sql）</p> : (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th align="left">Code</th>
-              <th align="left">Note</th>
-              <th align="left">Status</th>
-              <th align="left">Claimed By</th>
-              <th align="left">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invites.map((x) => (
-              <tr key={x.id} style={{ borderTop: "1px solid #ddd" }}>
-                <td><code>{x.code}</code></td>
-                <td>{x.note ?? "-"}</td>
-                <td>{x.status}</td>
-                <td>{x.claimed_by ?? "-"}</td>
-                <td>
-                  {x.status === "available" ? (
-                    <button disabled={busyId === x.id} onClick={() => post("/api/claim", x.id)}>领取</button>
-                  ) : "-"}
-                </td>
-              </tr>
+      <section className="card">
+        <h2>我领取的</h2>
+        {mine.length === 0 ? (
+          <p className="muted">你还没有已领取的邀请码。</p>
+        ) : (
+          <div className="list">
+            {mine.map((x) => (
+              <div className="item" key={x.id}>
+                <div className="left">
+                  <code>{x.code}</code>
+                  <span className={`tag ${x.status}`}>{STATUS_LABEL[x.status]}</span>
+                </div>
+                <div className="actions">
+                  <button className="btn primary" disabled={busyId === x.id} onClick={() => post("/api/use", x.id)}>
+                    标记已用
+                  </button>
+                  <button className="btn" disabled={busyId === x.id} onClick={() => post("/api/release", x.id)}>
+                    释放
+                  </button>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      )}
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>邀请码池</h2>
+        {invites.length === 0 ? (
+          <p className="muted">暂无数据。先在 Supabase 执行 schema.sql。</p>
+        ) : (
+          <div className="list">
+            {invites.map((x) => (
+              <div className="item" key={x.id}>
+                <div className="left">
+                  <code>{x.code}</code>
+                  <span className={`tag ${x.status}`}>{STATUS_LABEL[x.status]}</span>
+                  {x.note ? <span className="note">{x.note}</span> : null}
+                  {x.claimed_by ? <span className="muted">by {x.claimed_by}</span> : null}
+                </div>
+                <div className="actions">
+                  {x.status === "available" ? (
+                    <button className="btn success" disabled={busyId === x.id} onClick={() => post("/api/claim", x.id)}>
+                      领取
+                    </button>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }
