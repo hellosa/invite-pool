@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { CLAIM_TTL_MINUTES, db } from "@/lib/supabase";
+import { CLAIM_TTL_MINUTES, getDb } from "@/lib/supabase";
 
 const schema = z.object({
   id: z.string().uuid(),
@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { id, actor } = parsed.data;
+  const db = getDb();
   const expiresAt = new Date(Date.now() + CLAIM_TTL_MINUTES * 60 * 1000).toISOString();
 
   const { data, error } = await db

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/supabase";
+import { getDb } from "@/lib/supabase";
 
 const schema = z.object({
   id: z.string().uuid(),
@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { id, actor } = parsed.data;
+  const db = getDb();
 
   const { data, error } = await db
     .from("invites")
