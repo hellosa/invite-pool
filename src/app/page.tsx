@@ -8,6 +8,7 @@ type Invite = {
   note: string | null;
   status: "available" | "claimed" | "used" | "expired";
   claimed_by: string | null;
+  claimed_by_self?: boolean;
   claimed_at: string | null;
   used_at: string | null;
   expires_at: string | null;
@@ -32,12 +33,13 @@ export default function Home() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const mine = useMemo(
-    () => invites.filter((x) => x.claimed_by === actor && x.status === "claimed"),
-    [invites, actor],
+    () => invites.filter((x) => x.claimed_by_self && x.status === "claimed"),
+    [invites],
   );
 
   async function refresh() {
-    const res = await fetch("/api/invites", { cache: "no-store" });
+    const q = actor ? `?actor=${encodeURIComponent(actor)}` : "";
+    const res = await fetch(`/api/invites${q}`, { cache: "no-store" });
     const json = await res.json();
     setInvites(json.invites ?? []);
   }
@@ -45,14 +47,15 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch("/api/invites", { cache: "no-store" });
+      const q = actor ? `?actor=${encodeURIComponent(actor)}` : "";
+      const res = await fetch(`/api/invites${q}`, { cache: "no-store" });
       const json = await res.json();
       if (!cancelled) setInvites(json.invites ?? []);
     })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [actor]);
 
   async function post(path: string, id: string) {
     if (!actor) {
@@ -138,7 +141,7 @@ export default function Home() {
         ) : (
           <div className="list">
             {invites.map((x) => {
-              const isOwner = !!actor && x.claimed_by === actor;
+              const isOwner = !!x.claimed_by_self;
               const visibleCode = isOwner && x.status === "claimed" ? x.code : maskCode(x.code);
 
               return (
